@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>צולנט – פורטל ספק</title>
+  <link rel="manifest" href="./supplier-manifest.json">
+  <link rel="icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f3f5f8; color: #1f2937; padding: 12px 12px 40px; }
+    .header { background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #fff; padding: 14px 16px; border-radius: 14px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(30,58,138,0.2); }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 6px; }
+    .top-bar h1 { margin: 0; font-size: 18px; }
+    .top-actions { display: flex; gap: 6px; }
+    .mini-btn { background: rgba(255,255,255,0.18); border: none; color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { background: rgba(255,255,255,0.14); padding: 8px; border-radius: 8px; text-align: center; }
+    .stat small { display: block; font-size: 11px; opacity: 0.85; }
+    .stat b { font-size: 14px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: #e5e7eb; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .tab.active { background: #1e3a8a; color: #fff; }
+    .table-wrap { background: #fff; border-radius: 12px; overflow-x: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
+    th { background: #eef2ff; color: #1e3a8a; padding: 10px 6px; font-weight: 700; border-bottom: 2px solid #dbeafe; }
+    td { padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }
+    .heb { display: block; font-size: 11px; color: #6b7280; }
+    .bal-red { color: #b91c1c; font-weight: 700; }
+    .bal-orange { color: #c2410c; font-weight: 700; }
+    .bal-green { color: #15803d; font-weight: 700; }
+    .btn { padding: 6px 10px; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; }
+    .btn-go { background: #16a34a; color: #fff; }
+    .btn-done { background: #dcfce7; color: #166534; }
+    .btn-wait { background: #f1f5f9; color: #64748b; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; display: none; z-index: 99; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="top-bar">
+      <h1>צולנט – פורטל ספק</h1>
+      <div class="top-actions">
+        <button id="pinBtn" class="mini-btn" onclick="unlockSupplier()">כניסת ספק 🔒</button>
+        <button class="mini-btn" onclick="loadData()">רענן ↻</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>סה"כ שולם</small><b id="sPaid">...</b></div>
+      <div class="stat"><small>יתרה לתשלום</small><b id="sBal">...</b></div>
+      <div class="stat"><small>קבלות חסרות</small><b id="sRec">...</b></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('payments', this)">אישור תשלומים וקבלות</button>
+    <button class="tab" onclick="showTab('orders', this)">פירוט הזמנות שבועי</button>
+  </div>
+
+  <div id="payments" class="table-wrap">טוען נתונים...</div>
+  <div id="orders" class="table-wrap hidden"></div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxbLBuTr6uNxGFLxVYc7uu-x_OIg6g2BBk5cb0WC5qlYT4Cn34qooc1zXcx9EkHShcsAg/exec";
+    let appData = null;
+    let supplierPin = localStorage.getItem('cholent_supplier_pin') || '';
+
+    function updatePinBtn() {
+      const btn = document.getElementById('pinBtn');
+      if (supplierPin === '1234') {
+        btn.textContent = 'ספק מחובר ✓';
+        btn.style.background = 'rgba(22,163,74,0.6)';
+      } else {
+        btn.textContent = 'כניסת ספק 🔒';
+        btn.style.background = 'rgba(255,255,255,0.18)';
+      }
+    }
+
+    function unlockSupplier() {
+      if (supplierPin === '1234') {
+        if (confirm('להתנתק ממצב ספק?')) {
+          supplierPin = '';
+          localStorage.removeItem('cholent_supplier_pin');
+          updatePinBtn();
+          if (appData) render(appData);
+        }
+        return;
+      }
+      const code = prompt('הזן קוד ספק (4 ספרות):');
+      if (code === null) return;
+      if (code.trim() === '1234') {
+        supplierPin = '1234';
+        localStorage.setItem('cholent_supplier_pin', '1234');
+        updatePinBtn();
+        if (appData) render(appData);
+        toast('מצב ספק הופעל ✓');
+      } else {
+        alert('קוד שגוי');
+      }
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 2500);
+    }
+
+    function showTab(id, btn) {
+      document.getElementById('payments').classList.toggle('hidden', id !== 'payments');
+      document.getElementById('orders').classList.toggle('hidden', id !== 'orders');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function render(data) {
+      appData = data;
+      const isSup = (supplierPin === '1234');
+      document.getElementById('sPaid').textContent = data.totalPaid;
+      document.getElementById('sBal').textContent = data.totalBalance;
+      document.getElementById('sRec').textContent = data.missingReceipts;
+
+      document.getElementById('payments').innerHTML = `
+        <table>
+          <thead><tr><th>תאריך</th><th>אמצעי</th><th>סכום</th><th>אישור ספק</th><th>קבלה</th></tr></thead>
+          <tbody>${data.payments.map(p => {
+            var confBtn = p.confirmed
+              ? '<span class="btn btn-done">אושר ✓</span>'
+              : (isSup
+                  ? `<button class="btn btn-go" onclick="postAction({action:'confirmPayment', row:${p.row}, pin:supplierPin}, this, 'אשר קבלה ✓')">אשר קבלה ✓</button>`
+                  : '<span class="btn btn-wait" onclick="unlockSupplier()">נעול לספק 🔒</span>');
+            var recBtn = p.hasReceipt
+              ? '<span class="btn btn-done">הופקה ✓</span>'
+              : `<button class="btn btn-go" onclick="postAction({action:'confirmReceipt', row:${p.row}}, this, 'הופקה קבלה ✓')">הופקה קבלה ✓</button>`;
+            return `<tr><td>${p.date}</td><td>${p.method}</td><td><b>${p.amount}</b></td><td>${confBtn}</td><td>${recBtn}</td></tr>`;
+          }).join('')}</tbody>
+        </table>`;
+
+      document.getElementById('orders').innerHTML = `
+        <table>
+          <thead><tr><th>תאריך</th><th>סירים</th><th>שולם</th><th>יתרה</th><th>סטטוס</th></tr></thead>
+          <tbody>${data.orders.map(o => {
+            var balClass = o.paidNum === 0 ? 'bal-red' : (o.balance !== '₪0.00' ? 'bal-orange' : 'bal-green');
+            var status = o.confirmed
+              ? '<span class="btn btn-done">אושר ✓</span>'
+              : (o.paidNum === 0 ? '<span class="btn btn-wait">טרם שולם</span>' : '<span class="btn btn-wait">ממתין לאישור</span>');
+            return `<tr><td>${o.date}<span class="heb">${o.hebDate}</span></td><td>${o.pots}</td><td>${o.paid}</td><td class="${balClass}">${o.balance}</td><td>${status}</td></tr>`;
+          }).join('')}</tbody>
+        </table>`;
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        render(data);
+      } catch (e) {
+        toast('שגיאה בטעינת הנתונים');
+      }
+    }
+
+    async function postAction(payload, btn, defaultText) {
+      btn.disabled = true;
+      btn.textContent = 'שומר...';
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        render(data);
+        toast('עודכן בהצלחה ✓');
+      } catch (e) {
+        alert(e.message || 'שגיאה בשמירה');
+        btn.disabled = false;
+        btn.textContent = defaultText;
+      }
+    }
+
+    updatePinBtn();
+    loadData();
+  </script>
+</body>
+</html>
