@@ -132,7 +132,7 @@
             var confBtn = p.confirmed
               ? '<span class="btn btn-done">אושר ✓</span>'
               : (isSup
-                  ? `<button class="btn btn-go" onclick="postAction({action:'confirmPayment', row:${p.row}, pin:supplierPin}, this, 'אשר קבלה ✓')">אשר קבלה ✓</button>`
+                  ? `<button class="btn btn-go" onclick="postAction({action:'confirmPayment', row:${p.row}, pin:supplierPin}, this, 'הכסף התקבל ✓')">הכסף התקבל ✓</button>`
                   : '<span class="btn btn-wait" onclick="unlockSupplier()">נעול לספק 🔒</span>');
             var recBtn = p.hasReceipt
               ? '<span class="btn btn-done">הופקה ✓</span>'
