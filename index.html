@@ -178,15 +178,9 @@
       const diffEl = document.getElementById('bDiff');
       const diffLbl = document.getElementById('bDiffLbl');
       const diffNum = Number(data.bankMissingNum || 0);
-      if (diffNum <= 0) {
-        diffLbl.textContent = 'חסר לרשום בקופה';
-        diffEl.className = 'ok';
-        diffEl.textContent = '₪' + Math.abs(diffNum).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      } else {
-        diffLbl.textContent = 'חסר להפקיד לבנק';
-        diffEl.className = 'bad';
-        diffEl.textContent = data.bankMissing;
-      }
+      diffLbl.textContent = 'חסר להפקיד בבנק';
+      diffEl.className = diffNum <= 0 ? 'ok' : 'bad';
+      diffEl.textContent = data.bankMissing || '₪0.00';
 
       document.getElementById('depTable').innerHTML = `<thead><tr><th>תאריך</th><th>הופקד לבנק</th><th>נרשם בקופה</th></tr></thead><tbody>`
         + (data.deposits || []).map(d => `<tr><td>${d.date}</td><td><b>${d.amount || '-'}</b></td><td>${d.pos || '-'}</td></tr>`).join('') + '</tbody>';
