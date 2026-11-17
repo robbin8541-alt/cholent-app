@@ -23,6 +23,9 @@
     .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
     .tab { flex: 1; padding: 10px 4px; border: none; border-radius: 10px; background: #e5e7eb; color: #374151; font-weight: 700; font-size: 12px; cursor: pointer; }
     .tab.active { background: #14532d; color: #fff; }
+    .sub-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .sub-tab { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-weight: 700; font-size: 12px; cursor: pointer; }
+    .sub-tab.active { background: #dcfce7; border-color: #16a34a; color: #14532d; }
     .card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 5px rgba(0,0,0,0.06); }
     label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 4px; color: #374151; }
     input, select { width: 100%; padding: 11px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; background: #fff; }
@@ -33,12 +36,13 @@
     .mini-stat b { font-size: 14px; }
     .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; background: #16a34a; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 14px; }
     .btn:disabled { opacity: 0.6; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
-    th { background: #dcfce7; color: #14532d; padding: 9px 4px; border-bottom: 2px solid #bbf7d0; }
-    td { padding: 9px 4px; border-bottom: 1px solid #f1f5f9; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+    th { background: #dcfce7; color: #14532d; padding: 8px 4px; border-bottom: 2px solid #bbf7d0; }
+    td { padding: 8px 4px; border-bottom: 1px solid #f1f5f9; }
     .ok { color: #15803d; font-weight: 700; }
     .bad { color: #b91c1c; font-weight: 700; }
     .wait { color: #9ca3af; }
+    .heb { display: block; font-size: 10px; color: #6b7280; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; display: none; z-index: 99; }
     .hidden { display: none; }
   </style>
@@ -68,7 +72,7 @@
     <label>בחר שבוע</label>
     <select id="wSelect" onchange="fillWeek()"></select>
     <div class="grid2">
-      <div><label>מזומן (₪)</label><input id="wCash" type="number" step="0.01" inputmode="decimal"></div>
+      <div><label>מזומן בפועל (₪)</label><input id="wCash" type="number" step="0.01" inputmode="decimal"></div>
       <div><label>אשראי (₪)</label><input id="wCredit" type="number" step="0.01" inputmode="decimal"></div>
       <div><label>סירים שהוזמנו</label><input id="wPots" type="number" step="0.5" inputmode="decimal"></div>
       <div><label>כמה הסתיים</label><input id="wFin" type="text"></div>
@@ -94,16 +98,18 @@
 
   <div id="bank" class="hidden">
     <div class="grid3">
-      <div class="mini-stat"><small>מזומן בקבלות</small><b id="bCashRec">...</b></div>
+      <div class="mini-stat"><small>נרשם בקופה (קבלה)</small><b id="bCashRec">...</b></div>
       <div class="mini-stat"><small>הופקד לבנק</small><b id="bDep">...</b></div>
-      <div class="mini-stat"><small id="bDiffLbl">חסר להפקיד</small><b id="bDiff">...</b></div>
+      <div class="mini-stat"><small id="bDiffLbl">חסר להפקיד לבנק</small><b id="bDiff">...</b></div>
     </div>
     <div class="card">
+      <label>תאריך</label>
+      <input id="dDate" type="date">
       <div class="grid2">
-        <div><label>תאריך הפקדה</label><input id="dDate" type="date"></div>
-        <div><label>סכום שהופקד (₪)</label><input id="dAmt" type="number" step="0.01" inputmode="decimal" placeholder="למשל 3000"></div>
+        <div><label>הופקד לבנק (₪)</label><input id="dAmt" type="number" step="0.01" inputmode="decimal" placeholder="למשל 3000"></div>
+        <div><label>נרשם בקופה / קבלה (₪)</label><input id="dPos" type="number" step="0.01" inputmode="decimal" placeholder="למשל 2500"></div>
       </div>
-      <button class="btn" onclick="saveDeposit(this)">רשום הפקדה לבנק ✓</button>
+      <button class="btn" onclick="saveDeposit(this)">שמור לבנק / קופה ✓</button>
     </div>
     <div class="card" style="overflow-x:auto;">
       <table id="depTable"></table>
@@ -111,7 +117,12 @@
   </div>
 
   <div id="profit" class="card hidden" style="overflow-x:auto;">
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="showProfitView('monthly', this)">לפי חודש</button>
+      <button class="sub-tab" onclick="showProfitView('weekly', this)">לפי שבוע</button>
+    </div>
     <table id="monthTable"></table>
+    <table id="weekTable" class="hidden"></table>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -135,6 +146,13 @@
       btn.classList.add('active');
     }
 
+    function showProfitView(view, btn) {
+      document.getElementById('monthTable').classList.toggle('hidden', view !== 'monthly');
+      document.getElementById('weekTable').classList.toggle('hidden', view !== 'weekly');
+      document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
     function fillWeek() {
       if (!appData) return;
       const row = Number(document.getElementById('wSelect').value);
@@ -155,24 +173,23 @@
       document.getElementById('cPaid').textContent = data.cashPaid;
       document.getElementById('bPaid').textContent = data.bankPaid;
 
-      // Bank & Cash
       document.getElementById('bCashRec').textContent = data.bankCashReceipts || '₪0.00';
       document.getElementById('bDep').textContent = data.bankDeposited || '₪0.00';
       const diffEl = document.getElementById('bDiff');
       const diffLbl = document.getElementById('bDiffLbl');
       const diffNum = Number(data.bankMissingNum || 0);
       if (diffNum <= 0) {
-        diffLbl.textContent = 'עודף הפקדה';
+        diffLbl.textContent = 'חסר לרשום בקופה';
         diffEl.className = 'ok';
         diffEl.textContent = '₪' + Math.abs(diffNum).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
       } else {
-        diffLbl.textContent = 'חסר להפקיד';
+        diffLbl.textContent = 'חסר להפקיד לבנק';
         diffEl.className = 'bad';
         diffEl.textContent = data.bankMissing;
       }
 
-      document.getElementById('depTable').innerHTML = `<thead><tr><th>תאריך הפקדה</th><th>סכום שהופקד</th></tr></thead><tbody>`
-        + (data.deposits || []).map(d => `<tr><td>${d.date}</td><td><b>${d.amount}</b></td></tr>`).join('') + '</tbody>';
+      document.getElementById('depTable').innerHTML = `<thead><tr><th>תאריך</th><th>הופקד לבנק</th><th>נרשם בקופה</th></tr></thead><tbody>`
+        + (data.deposits || []).map(d => `<tr><td>${d.date}</td><td><b>${d.amount || '-'}</b></td><td>${d.pos || '-'}</td></tr>`).join('') + '</tbody>';
 
       const sel = document.getElementById('wSelect');
       const prev = sel.value;
@@ -186,6 +203,10 @@
 
       document.getElementById('monthTable').innerHTML = `<thead><tr><th>חודש</th><th>מזומן</th><th>אשראי</th><th>הכנסות</th><th>סירים</th><th>רווח</th></tr></thead><tbody>`
         + data.months.map(m => `<tr><td><b>${m.name}</b></td><td>${m.cash}</td><td>${m.credit}</td><td>${m.income}</td><td>${m.cost}</td><td class="ok">${m.profit}</td></tr>`).join('') + '</tbody>';
+
+      const activeWeeks = data.weeks.filter(w => w.cash !== "" || w.credit !== "" || w.pots !== "").slice().reverse();
+      document.getElementById('weekTable').innerHTML = `<thead><tr><th>תאריך</th><th>מזומן</th><th>אשראי</th><th>סה"כ</th><th>סירים</th><th>רווח</th></tr></thead><tbody>`
+        + activeWeeks.map(w => `<tr><td><b>${w.date}</b><span class="heb">${w.heb}</span></td><td>${w.cashDisp || '₪0'}</td><td>${w.creditDisp || '₪0'}</td><td><b>${w.total}</b></td><td>${w.cost}</td><td class="ok">${w.profit}</td></tr>`).join('') + '</tbody>';
     }
 
     async function loadData() {
@@ -244,13 +265,16 @@
 
     function saveDeposit(btn) {
       const amt = document.getElementById('dAmt').value;
-      if (!amt) return alert('נא להזין סכום הפקדה');
+      const pos = document.getElementById('dPos').value;
+      if (!amt && !pos) return alert('נא להזין סכום הפקדה או סכום בקופה');
       postAction({
         action: 'addDeposit',
         date: document.getElementById('dDate').value,
-        amount: amt
-      }, btn, 'רשום הפקדה לבנק ✓').then(() => {
+        amount: amt,
+        pos: pos
+      }, btn, 'שמור לבנק / קופה ✓').then(() => {
         document.getElementById('dAmt').value = '';
+        document.getElementById('dPos').value = '';
       });
     }
 
